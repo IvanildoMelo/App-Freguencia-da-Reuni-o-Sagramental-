@@ -105,8 +105,33 @@
 
 <script>
     const orgs = ["Quórum de Élderes", "Sociedade de Socorro", "Moças", "Rapazes", "Primária"];
-    let counts = JSON.parse(localStorage.getItem('counts')) || { 0:0, 1:0, 2:0, 3:0, 4:0 };
-    let history = JSON.parse(localStorage.getItem('history')) || [];
+    
+    // Inicialização segura com tratamento de erro
+    let counts = (() => {
+        try {
+            const stored = localStorage.getItem('counts');
+            const parsed = stored ? JSON.parse(stored) : null;
+            // Valida se é array com 5 elementos
+            if (Array.isArray(parsed) && parsed.length === 5) {
+                return parsed;
+            }
+            return [0, 0, 0, 0, 0];
+        } catch (e) {
+            console.error('Erro ao recuperar counts:', e);
+            return [0, 0, 0, 0, 0];
+        }
+    })();
+
+    let history = (() => {
+        try {
+            const stored = localStorage.getItem('history');
+            const parsed = stored ? JSON.parse(stored) : null;
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            console.error('Erro ao recuperar history:', e);
+            return [];
+        }
+    })();
 
     function renderOrgs() {
         const container = document.getElementById('orgs-list');
@@ -115,7 +140,7 @@
                 <div class="org-name">${name}</div>
                 <div class="counter-controls">
                     <button class="btn btn-sub" onclick="update(${i}, -1)">-</button>
-                    <div class="count-display">${counts[i]}</div>
+                    <div class="count-display">${counts[i] || 0}</div>
                     <button class="btn btn-add" onclick="update(${i}, 1)">+</button>
                 </div>
             </div>
@@ -123,8 +148,8 @@
     }
 
     function update(i, val) {
-        if (counts[i] + val >= 0) {
-            counts[i] += val;
+        if ((counts[i] || 0) + val >= 0) {
+            counts[i] = (counts[i] || 0) + val;
             localStorage.setItem('counts', JSON.stringify(counts));
             renderOrgs();
         }
@@ -139,8 +164,8 @@
 
     function saveToHistory() {
         const timestamp = new Date().toLocaleString('pt-BR');
-        const total = Object.values(counts).reduce((a, b) => a + b, 0);
-        const record = { time: timestamp, data: {...counts}, total: total };
+        const total = counts.reduce((a, b) => (a || 0) + (b || 0), 0);
+        const record = { time: timestamp, data: [...counts], total: total };
         
         history.unshift(record); // Adiciona no início
         if(history.length > 10) history.pop(); // Mantém os últimos 10
@@ -165,11 +190,11 @@
 
     function sendWhatsApp() {
         const date = document.getElementById('current-date').innerText;
-        const total = Object.values(counts).reduce((a, b) => a + b, 0);
+        const total = counts.reduce((a, b) => (a || 0) + (b || 0), 0);
         
         let msg = `*RELATÓRIO DE FREQUÊNCIA*%0A*Data:* ${date}%0A%0A`;
         orgs.forEach((name, i) => {
-            msg += `*${name}:* ${counts[i]}%0A`;
+            msg += `*${name}:* ${counts[i] || 0}%0A`;
         });
         msg += `%0A*TOTAL GERAL:* ${total}`;
 
@@ -178,7 +203,7 @@
 
     function clearAll() {
         if(confirm("Zerar todos os dados e histórico?")) {
-            counts = { 0:0, 1:0, 2:0, 3:0, 4:0 };
+            counts = [0, 0, 0, 0, 0];
             history = [];
             localStorage.clear();
             renderOrgs();
