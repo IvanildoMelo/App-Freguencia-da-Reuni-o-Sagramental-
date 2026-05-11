@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frequência Reunião Sacramental</title>
+    <style>
+        :root {
+            --primary: #0a4d8c;
+            --secondary: #e6f0fa;
+            --light: #ffffff;
+            --btn-blue: #2196F3;
+            --border-color: #d1d9e0;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+
+        body { background-color: var(--light); display: flex; justify-content: center; padding: 20px; }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: var(--light);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-color);
+        }
+
+        h2 { text-align: center; color: var(--primary); margin-bottom: 5px; }
+
+        .datetime { text-align: center; font-size: 0.9rem; margin-bottom: 20px; color: #666; }
+
+        .org-card {
+            background: var(--secondary);
+            margin-bottom: 10px;
+            padding: 12px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .org-name { font-weight: 600; color: var(--primary); }
+
+        .counter-controls { display: flex; align-items: center; gap: 10px; }
+
+        .btn {
+            border: none; width: 32px; height: 32px; border-radius: 6px;
+            cursor: pointer; font-weight: bold; font-size: 1.1rem;
+        }
+
+        .btn-sub { background: #fff; border: 1px solid #ccc; }
+        .btn-add { background: var(--btn-blue); color: #fff; }
+
+        .count-display { font-size: 1.2rem; font-weight: bold; min-width: 30px; text-align: center; }
+
+        /* Histórico */
+        .history-section {
+            margin-top: 20px;
+            border-top: 2px solid var(--secondary);
+            padding-top: 15px;
+        }
+
+        .history-item {
+            font-size: 0.85rem;
+            background: #f9f9f9;
+            padding: 8px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .footer-actions { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+
+        .btn-save { background-color: #27ae60; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-whatsapp { background-color: #25d366; color: white; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-reset { background: none; border: 1px solid #ccc; color: #777; padding: 8px; border-radius: 8px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Frequência Sacramental</h2>
+    <div class="datetime" id="current-date">--/--/---- --:--</div>
+
+    <div id="orgs-list">
+        <!-- Gerado via JS para facilitar manutenção -->
+    </div>
+
+    <div class="footer-actions">
+        <button class="btn-save" onclick="saveToHistory()">GRAVAR NO HISTÓRICO</button>
+        <button class="btn-whatsapp" onclick="sendWhatsApp()">ENVIAR RELATÓRIO WHATSAPP</button>
+    </div>
+
+    <div class="history-section">
+        <h3 style="font-size: 1rem; color: var(--primary); margin-bottom: 10px;">Histórico de Registros</h3>
+        <div id="history-list">
+            <p style="font-size: 0.8rem; color: #999;">Nenhum registro salvo ainda.</p>
+        </div>
+        <button class="btn-reset" style="margin-top: 10px; width: 100%;" onclick="clearAll()">Limpar Tudo</button>
+    </div>
+</div>
+
+<script>
+    const orgs = ["Quórum de Élderes", "Sociedade de Socorro", "Moças", "Rapazes", "Primária"];
+    let counts = JSON.parse(localStorage.getItem('counts')) || { 0:0, 1:0, 2:0, 3:0, 4:0 };
+    let history = JSON.parse(localStorage.getItem('history')) || [];
+
+    function renderOrgs() {
+        const container = document.getElementById('orgs-list');
+        container.innerHTML = orgs.map((name, i) => `
+            <div class="org-card">
+                <div class="org-name">${name}</div>
+                <div class="counter-controls">
+                    <button class="btn btn-sub" onclick="update(${i}, -1)">-</button>
+                    <div class="count-display">${counts[i]}</div>
+                    <button class="btn btn-add" onclick="update(${i}, 1)">+</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function update(i, val) {
+        if (counts[i] + val >= 0) {
+            counts[i] += val;
+            localStorage.setItem('counts', JSON.stringify(counts));
+            renderOrgs();
+        }
+    }
+
+    function updateDateTime() {
+        const now = new Date();
+        document.getElementById('current-date').innerText = now.toLocaleString('pt-BR');
+    }
+    setInterval(updateDateTime, 1000);
+    updateDateTime();
+
+    function saveToHistory() {
+        const timestamp = new Date().toLocaleString('pt-BR');
+        const total = Object.values(counts).reduce((a, b) => a + b, 0);
+        const record = { time: timestamp, data: {...counts}, total: total };
+        
+        history.unshift(record); // Adiciona no início
+        if(history.length > 10) history.pop(); // Mantém os últimos 10
+        
+        localStorage.setItem('history', JSON.stringify(history));
+        renderHistory();
+        alert("Dados gravados no histórico!");
+    }
+
+    function renderHistory() {
+        const list = document.getElementById('history-list');
+        if (history.length === 0) {
+            list.innerHTML = '<p style="font-size: 0.8rem; color: #999;">Nenhum registro.</p>';
+            return;
+        }
+        list.innerHTML = history.map(item => `
+            <div class="history-item">
+                <strong>${item.time}</strong> - Total: ${item.total}
+            </div>
+        `).join('');
+    }
+
+    function sendWhatsApp() {
+        const date = document.getElementById('current-date').innerText;
+        const total = Object.values(counts).reduce((a, b) => a + b, 0);
+        
+        let msg = `*RELATÓRIO DE FREQUÊNCIA*%0A*Data:* ${date}%0A%0A`;
+        orgs.forEach((name, i) => {
+            msg += `*${name}:* ${counts[i]}%0A`;
+        });
+        msg += `%0A*TOTAL GERAL:* ${total}`;
+
+        window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+    }
+
+    function clearAll() {
+        if(confirm("Zerar todos os dados e histórico?")) {
+            counts = { 0:0, 1:0, 2:0, 3:0, 4:0 };
+            history = [];
+            localStorage.clear();
+            renderOrgs();
+            renderHistory();
+        }
+    }
+
+    renderOrgs();
+    renderHistory();
+</script>
+
+</body>
+</html>
